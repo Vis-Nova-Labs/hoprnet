@@ -396,6 +396,7 @@ For more information please refer to [act][8]'s documentation.
 #### Running Tests Locally
 
 ##### Testing environment
+
 Tests are using the `pytest` infrastructure that can be set up inside a virtualenv using as:
 
 ```sh
@@ -405,20 +406,21 @@ python3 -m pip install -r tests/integration/requirements.txt
 ```
 
 To deactivate the activated testing environment if no longer needed:
+
 ```sh
 deactivate
 ```
 
-
 ##### Test execution
+
 With the environment activated, execute the tests locally:
 
 ```sh
 pytest tests/integration/
 ```
 
-
 #### NPM local testing alternative
+
 An alternative to using the local source code is running the tests against
 a NPM package.
 
