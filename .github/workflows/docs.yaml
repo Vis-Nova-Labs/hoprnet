@@ -75,7 +75,7 @@ jobs:
           DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY_DEFAULT_FOUNDRY }}
 
       - name: Format newly created files
-        run: make lint-fix
+        run: make fmt
 
       - name: Move OpenAPI spec file into documentation directory
         run: |
