@@ -15,7 +15,7 @@ pub struct PromiscuousStrategy {
     pub minimum_channel_balance: Balance,
     pub minimum_node_balance: Balance,
     pub max_channels: Option<usize>,
-    pub auto_redeem_tickets: bool
+    pub auto_redeem_tickets: bool,
 }
 
 impl PromiscuousStrategy {
@@ -26,7 +26,7 @@ impl PromiscuousStrategy {
             minimum_channel_balance: Balance::from_str("10000000000000000").unwrap(),
             minimum_node_balance: Balance::from_str("100000000000000000").unwrap(),
             max_channels: None,
-            auto_redeem_tickets: false
+            auto_redeem_tickets: false,
         }
     }
 }
@@ -96,8 +96,13 @@ impl ChannelStrategy for PromiscuousStrategy {
             .for_each(|c| to_close.push(c.peer_id.clone()));
 
         // We compute the upper bound for channels as a square-root of the perceived network size
-        let max_auto_channels = self.max_channels.unwrap_or((network_size as f64).sqrt().ceil() as usize);
-        let count_opened = outgoing_channels.iter().filter(|c| c.status == Open).count();
+        let max_auto_channels = self
+            .max_channels
+            .unwrap_or((network_size as f64).sqrt().ceil() as usize);
+        let count_opened = outgoing_channels
+            .iter()
+            .filter(|c| c.status == Open)
+            .count();
 
         // Sort the new channel candidates by best quality first, then truncate to the number of available slots
         // This way, we'll prefer candidates with higher quality, when we don't have enough node balance
@@ -105,8 +110,7 @@ impl ChannelStrategy for PromiscuousStrategy {
         new_channel_candidates.shuffle(&mut OsRng);
         new_channel_candidates
             .sort_unstable_by(|(_, q1), (_, q2)| q1.partial_cmp(q2).unwrap().reverse());
-        new_channel_candidates
-            .truncate(max_auto_channels - (count_opened - to_close.len()));
+        new_channel_candidates.truncate(max_auto_channels - (count_opened - to_close.len()));
 
         // Go through the new candidates for opening channels allow them to open based on our available node balance
         let mut to_open: Vec<OutgoingChannelStatus> = vec![];
@@ -122,7 +126,7 @@ impl ChannelStrategy for PromiscuousStrategy {
                 to_open.push(OutgoingChannelStatus {
                     peer_id,
                     stake: self.new_channel_stake.clone(),
-                    status: Open
+                    status: Open,
                 });
                 remaining_balance = balance.sub(&self.new_channel_stake);
             }
@@ -231,7 +235,7 @@ pub mod wasm {
         #[wasm_bindgen(constructor)]
         pub fn new() -> Self {
             PromiscuousStrategy {
-                w: super::PromiscuousStrategy::new()
+                w: super::PromiscuousStrategy::new(),
             }
         }
 

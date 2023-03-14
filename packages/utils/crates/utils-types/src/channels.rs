@@ -9,5 +9,5 @@ pub enum ChannelStatus {
     Closed = 0,
     WaitingForCommitment = 1,
     Open = 2,
-    PendingToClose = 3
+    PendingToClose = 3,
 }

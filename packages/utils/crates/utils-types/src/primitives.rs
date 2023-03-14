@@ -2,7 +2,6 @@ use ethnum::{u256, AsU256};
 use std::ops::{Add, Sub};
 
 pub trait TypeBase: PartialEq + ToString {
-
     fn to_hex(&self) -> String;
 }
 
@@ -54,7 +53,9 @@ impl BaseBalance for Balance {
 }
 
 impl TypeBase for Balance {
-    fn to_hex(&self) -> String { hex::encode(self.value().to_be_bytes()) }
+    fn to_hex(&self) -> String {
+        hex::encode(self.value().to_be_bytes())
+    }
 }
 
 impl PartialEq for Balance {
@@ -137,8 +138,8 @@ pub mod wasm {
     use utils_misc::ok_or_jserr;
     use utils_misc::utils::wasm::JsResult;
 
-    use crate::primitives::TypeBase;
     use crate::primitives::BaseBalance;
+    use crate::primitives::TypeBase;
 
     #[wasm_bindgen]
     #[derive(Clone)]

@@ -28,7 +28,6 @@ pub fn gather_all_metrics() -> Result<String, String> {
     ok_or_str!(encoder.encode_to_string(&metric_families))
 }
 
-
 pub(crate) fn register_metric_vec<M, C>(
     name: &str,
     desc: &str,
@@ -51,35 +50,34 @@ where
 }
 
 #[cfg(any(not(feature = "wasm"), test))]
-use native::SimpleCounter;
-#[cfg(any(not(feature = "wasm"), test))]
 use native::MultiCounter;
-#[cfg(any(not(feature = "wasm"), test))]
-use native::SimpleTimer;
-#[cfg(any(not(feature = "wasm"), test))]
-use native::SimpleGauge;
 #[cfg(any(not(feature = "wasm"), test))]
 use native::MultiGauge;
 #[cfg(any(not(feature = "wasm"), test))]
+use native::MultiHistogram;
+#[cfg(any(not(feature = "wasm"), test))]
+use native::SimpleCounter;
+#[cfg(any(not(feature = "wasm"), test))]
+use native::SimpleGauge;
+#[cfg(any(not(feature = "wasm"), test))]
 use native::SimpleHistogram;
 #[cfg(any(not(feature = "wasm"), test))]
-use native::MultiHistogram;
+use native::SimpleTimer;
 
-#[cfg(all(feature = "wasm", not(test)))]
-use wasm::SimpleCounter;
 #[cfg(all(feature = "wasm", not(test)))]
 use wasm::MultiCounter;
 #[cfg(all(feature = "wasm", not(test)))]
-use wasm::SimpleTimer;
+use wasm::MultiGauge;
+#[cfg(all(feature = "wasm", not(test)))]
+use wasm::MultiHistogram;
+#[cfg(all(feature = "wasm", not(test)))]
+use wasm::SimpleCounter;
 #[cfg(all(feature = "wasm", not(test)))]
 use wasm::SimpleGauge;
 #[cfg(all(feature = "wasm", not(test)))]
-use wasm::MultiGauge;
-#[cfg(all(feature = "wasm", not(test)))]
 use wasm::SimpleHistogram;
 #[cfg(all(feature = "wasm", not(test)))]
-use wasm::MultiHistogram;
-
+use wasm::SimpleTimer;
 
 pub mod native {
     /// Represents a timer handle.
@@ -97,7 +95,12 @@ pub mod native {
     impl SimpleCounter {
         /// Creates a new integer counter with given name and description
         pub fn new(name: &str, description: &str) -> Result<Self, String> {
-            crate::metrics::register_metric(name, description,crate::metrics::IntCounter::with_opts).map(|m| Self {
+            crate::metrics::register_metric(
+                name,
+                description,
+                crate::metrics::IntCounter::with_opts,
+            )
+            .map(|m| Self {
                 name: name.to_string(),
                 ctr: m,
             })
@@ -119,7 +122,6 @@ pub mod native {
         }
     }
 
-
     /// Represents a vector of named monotonic unsigned integer counters.
     /// Wrapper for IntCounterVec type
     pub struct MultiCounter {
@@ -131,7 +133,13 @@ pub mod native {
     impl MultiCounter {
         /// Creates a new vector of integer counters with given name, description and counter labels.
         pub fn new(name: &str, description: &str, labels: &[&str]) -> Result<Self, String> {
-            crate::metrics::register_metric_vec(name, description, labels, crate::metrics::IntCounterVec::new).map(|m| Self {
+            crate::metrics::register_metric_vec(
+                name,
+                description,
+                labels,
+                crate::metrics::IntCounterVec::new,
+            )
+            .map(|m| Self {
                 name: name.to_string(),
                 labels: Vec::from(labels).iter().map(|s| String::from(*s)).collect(),
                 ctr: m,
@@ -174,10 +182,11 @@ pub mod native {
     impl SimpleGauge {
         /// Creates a new gauge with given name and description.
         pub fn new(name: &str, description: &str) -> Result<Self, String> {
-            crate::metrics::register_metric(name, description, crate::metrics::Gauge::with_opts).map(|m| Self {
-                name: name.to_string(),
-                gg: m,
-            })
+            crate::metrics::register_metric(name, description, crate::metrics::Gauge::with_opts)
+                .map(|m| Self {
+                    name: name.to_string(),
+                    gg: m,
+                })
         }
 
         /// Increments the gauge by the given value.
@@ -206,7 +215,6 @@ pub mod native {
         }
     }
 
-
     /// Represents a vector of gauges with floating point values.
     /// Wrapper for GaugeVec type
     pub struct MultiGauge {
@@ -218,7 +226,13 @@ pub mod native {
     impl MultiGauge {
         /// Creates a new vector of gauges with given name, description and counter labels.
         pub fn new(name: &str, description: &str, labels: &[&str]) -> Result<Self, String> {
-            crate::metrics::register_metric_vec(name, description, labels, crate::metrics::GaugeVec::new).map(|m| Self {
+            crate::metrics::register_metric_vec(
+                name,
+                description,
+                labels,
+                crate::metrics::GaugeVec::new,
+            )
+            .map(|m| Self {
                 name: name.to_string(),
                 labels: Vec::from(labels).iter().map(|s| String::from(*s)).collect(),
                 ctr: m,
@@ -264,7 +278,6 @@ pub mod native {
             self.labels.iter().map(String::as_str).collect()
         }
     }
-
 
     /// Represents a histogram with floating point values.
     /// Wrapper for Histogram type
@@ -357,7 +370,8 @@ pub mod native {
                 opts = opts.buckets(buckets);
             }
 
-            let metric = crate::metrics::ok_or_str!(crate::metrics::HistogramVec::new(opts, labels))?;
+            let metric =
+                crate::metrics::ok_or_str!(crate::metrics::HistogramVec::new(opts, labels))?;
 
             crate::metrics::ok_or_str!(prometheus::register(Box::new(metric.clone())))?;
 
@@ -377,7 +391,10 @@ pub mod native {
 
         /// Starts a timer for a histogram with the given labels.
         #[allow(dead_code)]
-        pub fn start_measure(&self, label_values: &[&str]) -> Result<SimpleTimer, crate::metrics::Error> {
+        pub fn start_measure(
+            &self,
+            label_values: &[&str],
+        ) -> Result<SimpleTimer, crate::metrics::Error> {
             self.hh
                 .get_metric_with_label_values(label_values)
                 .map(|h| SimpleTimer {
@@ -583,7 +600,9 @@ pub mod wasm {
 
     #[wasm_bindgen]
     pub fn create_counter(name: &str, description: &str) -> Result<SimpleCounter, JsValue> {
-        ok_or_jserr!(super::native::SimpleCounter::new(name, description).map(|c| SimpleCounter { w: c }))
+        ok_or_jserr!(
+            super::native::SimpleCounter::new(name, description).map(|c| SimpleCounter { w: c })
+        )
     }
 
     #[wasm_bindgen]
@@ -619,8 +638,10 @@ pub mod wasm {
         labels: Vec<JsString>,
     ) -> Result<MultiCounter, JsValue> {
         convert_from_jstrvec!(labels, bind);
-        ok_or_jserr!(super::native::MultiCounter::new(name, description, bind.as_slice())
-            .map(|c| MultiCounter { w: c }))
+        ok_or_jserr!(
+            super::native::MultiCounter::new(name, description, bind.as_slice())
+                .map(|c| MultiCounter { w: c })
+        )
     }
 
     #[wasm_bindgen]
@@ -660,7 +681,9 @@ pub mod wasm {
 
     #[wasm_bindgen]
     pub fn create_gauge(name: &str, description: &str) -> Result<SimpleGauge, JsValue> {
-        ok_or_jserr!(super::native::SimpleGauge::new(name, description).map(|c| SimpleGauge { w: c }))
+        ok_or_jserr!(
+            super::native::SimpleGauge::new(name, description).map(|c| SimpleGauge { w: c })
+        )
     }
 
     #[wasm_bindgen]
@@ -709,7 +732,8 @@ pub mod wasm {
     ) -> Result<MultiGauge, JsValue> {
         convert_from_jstrvec!(labels, bind);
         ok_or_jserr!(
-            super::native::MultiGauge::new(name, description, bind.as_slice()).map(|c| MultiGauge { w: c })
+            super::native::MultiGauge::new(name, description, bind.as_slice())
+                .map(|c| MultiGauge { w: c })
         )
     }
 
@@ -863,10 +887,13 @@ pub mod wasm {
         labels: Vec<JsString>,
     ) -> Result<MultiHistogram, JsValue> {
         convert_from_jstrvec!(labels, bind);
-        ok_or_jserr!(
-            super::native::MultiHistogram::new(name, description, buckets.into(), bind.as_slice())
-                .map(|c| MultiHistogram { w: c })
+        ok_or_jserr!(super::native::MultiHistogram::new(
+            name,
+            description,
+            buckets.into(),
+            bind.as_slice()
         )
+        .map(|c| MultiHistogram { w: c }))
     }
 
     #[wasm_bindgen]

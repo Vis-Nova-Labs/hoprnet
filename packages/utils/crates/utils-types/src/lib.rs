@@ -1,5 +1,5 @@
-pub mod primitives;
 pub mod channels;
+pub mod primitives;
 
 #[cfg(feature = "wasm")]
 pub mod wasm {

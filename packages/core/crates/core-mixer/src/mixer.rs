@@ -1,31 +1,30 @@
 use std::time::Duration;
 
-use futures::stream::{Stream};
+use futures::stream::Stream;
 use futures_lite::stream::StreamExt;
 use rand::Rng;
 
 use crate::future_extensions::StreamThenConcurrentExt;
 
-
 #[cfg(any(not(feature = "wasm"), test))]
-use async_std::task::sleep as sleep;
+use async_std::task::sleep;
 
 #[cfg(all(feature = "wasm", not(test)))]
-use gloo_timers::future::sleep as sleep;
+use gloo_timers::future::sleep;
 
-
-const DELAY_MIN_MS: u64 = 0;    /// minimum delay in milliseconds
-const DELAY_MAX_MS: u64 = 200;  /// maximum delay in milliseconds
-
+const DELAY_MIN_MS: u64 = 0;
+/// minimum delay in milliseconds
+const DELAY_MAX_MS: u64 = 200;
+/// maximum delay in milliseconds
 
 #[cfg(feature = "wasm")]
 pub mod wasm {
     use super::*;
-    use wasm_bindgen::prelude::*;
-    use wasm_bindgen_futures::stream::JsStream;
-    use wasm_bindgen::JsValue;
-    use utils_misc::async_iterable::wasm::{to_box_u8_stream,to_jsvalue_stream};
     use js_sys::AsyncIterator;
+    use utils_misc::async_iterable::wasm::{to_box_u8_stream, to_jsvalue_stream};
+    use wasm_bindgen::prelude::*;
+    use wasm_bindgen::JsValue;
+    use wasm_bindgen_futures::stream::JsStream;
 
     #[wasm_bindgen]
     pub struct AsyncIterableHelperMixer {
@@ -33,7 +32,7 @@ pub mod wasm {
     }
 
     #[wasm_bindgen]
-    pub fn new_mixer(packet_input: AsyncIterator) -> Result<AsyncIterableHelperMixer,JsValue> {
+    pub fn new_mixer(packet_input: AsyncIterator) -> Result<AsyncIterableHelperMixer, JsValue> {
         if DELAY_MIN_MS >= DELAY_MAX_MS {
             panic!("The minimum delay must be smaller than the maximum delay")
         }
@@ -42,7 +41,7 @@ pub mod wasm {
             .map(to_box_u8_stream)
             .then_concurrent(|packet| async move {
                 let mut rng = rand::thread_rng();
-                let random_delay =  rng.gen_range(DELAY_MIN_MS..DELAY_MAX_MS);
+                let random_delay = rng.gen_range(DELAY_MIN_MS..DELAY_MAX_MS);
 
                 sleep(Duration::from_millis(random_delay)).await;
                 packet
@@ -60,7 +59,6 @@ pub mod wasm {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -84,14 +82,16 @@ mod tests {
 
     #[async_std::test]
     async fn test_then_concurrent_empty_stream_should_not_produce_a_value_if_none_is_ready() {
-        let mut stream = futures::stream::iter(random_packets(1))
-            .then_concurrent(|x|async {
-                sleep(TINY_CONSTANT_DELAY * 3).await;
-                x
-            });
+        let mut stream = futures::stream::iter(random_packets(1)).then_concurrent(|x| async {
+            sleep(TINY_CONSTANT_DELAY * 3).await;
+            x
+        });
 
         if let Err(_) = async_std::future::timeout(TINY_CONSTANT_DELAY, stream.next()).await {
-            assert!(true, "Timeout expected, the packet should not get through the pipeline")
+            assert!(
+                true,
+                "Timeout expected, the packet should not get through the pipeline"
+            )
         } else {
             assert!(false, "Timeout expected, but none occurred");
         }
@@ -102,15 +102,14 @@ mod tests {
         let constant_delay = Duration::from_millis(10);
         let tolerance = Duration::from_millis(1);
 
-        let expected = vec!(1,2,3);
+        let expected = vec![1, 2, 3];
 
         let start = std::time::Instant::now();
 
-        let stream = futures::stream::iter(expected.clone()).then_concurrent(
-            |x| async move {
-                sleep(constant_delay).await;
-                x
-            });
+        let stream = futures::stream::iter(expected.clone()).then_concurrent(|x| async move {
+            sleep(constant_delay).await;
+            x
+        });
 
         let _ = stream.collect::<Vec<i32>>().await;
 
@@ -121,16 +120,17 @@ mod tests {
 
     #[async_std::test]
     async fn test_then_concurrent_futures_are_processed_in_the_correct_order() {
-        let packet_1 = 10u64;         // 3rd in the output
-        let packet_2 = 5u64;         // 1st in the output
-        let packet_3 = 7u64;         // 2nd in the output
-        let expected_packets = vec!(packet_2, packet_3, packet_1);
+        let packet_1 = 10u64; // 3rd in the output
+        let packet_2 = 5u64; // 1st in the output
+        let packet_3 = 7u64; // 2nd in the output
+        let expected_packets = vec![packet_2, packet_3, packet_1];
 
-        let stream = futures::stream::iter(vec!(packet_1, packet_2, packet_3))
-            .then_concurrent(|x| async move {
+        let stream = futures::stream::iter(vec![packet_1, packet_2, packet_3]).then_concurrent(
+            |x| async move {
                 sleep(std::time::Duration::from_millis(x)).await;
                 x
-            });
+            },
+        );
         let actual_packets = stream.collect::<Vec<u64>>().await;
 
         assert_eq!(actual_packets, expected_packets);

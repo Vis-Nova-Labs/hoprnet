@@ -10,7 +10,6 @@ use utils_misc::time::native::current_timestamp;
 #[cfg(all(feature = "wasm", not(test)))]
 use utils_misc::time::wasm::current_timestamp;
 
-
 /// Minimum delay will be multiplied by backoff, it will be half the actual minimum value
 const MIN_DELAY: Duration = Duration::from_secs(1);
 const MAX_DELAY: Duration = Duration::from_secs(300); // 5 minutes
@@ -20,7 +19,6 @@ const MAX_BACKOFF: f64 = MAX_DELAY.as_millis() as f64 / MIN_DELAY.as_millis() as
 /// Default quality for unknown or offline nodes
 const BAD_QUALITY: f64 = 0.2;
 const IGNORE_TIMEFRAME: Duration = Duration::from_secs(600); // 10 minutes
-
 
 // Does not work with enums
 #[derive(Debug, Clone)]
@@ -59,7 +57,7 @@ impl std::fmt::Display for NetworkPeerOrigin {
 pub struct Entry {
     id: PeerId,
     origin: NetworkPeerOrigin,
-    last_seen: u64,     // timestamp
+    last_seen: u64, // timestamp
     quality: f64,
     heartbeats_sent: u64,
     heartbeats_succeeded: u64,
@@ -100,10 +98,10 @@ impl Entry {
 
 struct NetworkPeers {
     entries: HashMap<String, Entry>,
-    ignored: HashMap<String, u64>,      // timestamp
+    ignored: HashMap<String, u64>, // timestamp
     excluded: HashSet<String>,
     network_quality_threshold: f64,
-    on_peer_offline: Box<dyn Fn(&PeerId)>
+    on_peer_offline: Box<dyn Fn(&PeerId)>,
 }
 
 impl NetworkPeers {
@@ -111,7 +109,7 @@ impl NetworkPeers {
         existing: Vec<PeerId>,
         excluded: Vec<PeerId>,
         network_quality_threshold: f64,
-        on_peer_offline: Box<dyn Fn(&PeerId)>
+        on_peer_offline: Box<dyn Fn(&PeerId)>,
     ) -> NetworkPeers {
         if network_quality_threshold < BAD_QUALITY as f64 {
             panic!("Requested quality criteria are too low, expected: {network_quality_threshold}, minimum: {BAD_QUALITY}");
@@ -122,7 +120,7 @@ impl NetworkPeers {
             ignored: HashMap::new(),
             excluded: HashSet::from_iter(excluded.iter().map(|x| x.to_string())),
             network_quality_threshold,
-            on_peer_offline
+            on_peer_offline,
         };
 
         for id in existing.iter() {
@@ -148,7 +146,7 @@ impl NetworkPeers {
         let has_entry = self.entries.contains_key(id.as_str());
         let is_excluded = !has_entry && self.excluded.contains(id.as_str());
 
-        if ! is_excluded {
+        if !is_excluded {
             let is_ignored = if !has_entry && self.ignored.contains_key(id.as_str()) {
                 let timestamp = self.ignored.get(id.as_str()).unwrap();
                 if timestamp + (IGNORE_TIMEFRAME.as_millis() as u64) < now {
@@ -161,9 +159,12 @@ impl NetworkPeers {
                 false
             };
 
-            if ! has_entry && ! is_ignored {
-                if let Some(_x) = self.entries.insert(peer.to_string(),Entry::new(peer.clone(), origin)) {
-                    unreachable!()     // evicting an existing record? This should not happen
+            if !has_entry && !is_ignored {
+                if let Some(_x) = self
+                    .entries
+                    .insert(peer.to_string(), Entry::new(peer.clone(), origin))
+                {
+                    unreachable!() // evicting an existing record? This should not happen
                 }
             }
         }
@@ -184,16 +185,22 @@ impl NetworkPeers {
     /// - 1.0 => completely reliable / online
     pub fn quality_of(&self, id: &PeerId) -> f64 {
         return match self.entries.get(id.to_string().as_str()) {
-            Some(entry) => if entry.heartbeats_sent > 0 {entry.quality} else {BAD_QUALITY},
+            Some(entry) => {
+                if entry.heartbeats_sent > 0 {
+                    entry.quality
+                } else {
+                    BAD_QUALITY
+                }
+            }
             None => 0.0,
-        }
+        };
     }
 
     pub fn get_connection_info(&self, id: &PeerId) -> Option<Entry> {
         return match self.entries.get(id.to_string().as_str()) {
             Some(entry) => Some(entry.clone()),
-            None => None
-        }
+            None => None,
+        };
     }
 
     pub fn ping_since(&self, threshold: u64) -> Vec<PeerId> {
@@ -204,7 +211,9 @@ impl NetworkPeers {
             }
         }
         data.sort_by(|a, b| {
-            if self.entries.get(a.to_string().as_str()).unwrap().last_seen < self.entries.get(b.to_string().as_str()).unwrap().last_seen {
+            if self.entries.get(a.to_string().as_str()).unwrap().last_seen
+                < self.entries.get(b.to_string().as_str()).unwrap().last_seen
+            {
                 std::cmp::Ordering::Less
             } else {
                 std::cmp::Ordering::Greater
@@ -215,7 +224,10 @@ impl NetworkPeers {
     }
 
     pub fn update_record(&mut self, ping_result: crate::heartbeat::HeartbeatPingResult) {
-        if let Some(existing) = self.entries.get(ping_result.destination.to_string().as_str()) {
+        if let Some(existing) = self
+            .entries
+            .get(ping_result.destination.to_string().as_str())
+        {
             let mut entry = existing.clone();
             entry.last_seen = current_timestamp();
             entry.heartbeats_sent = entry.heartbeats_sent + 1;
@@ -228,13 +240,14 @@ impl NetworkPeers {
 
                 if entry.quality < self.network_quality_threshold {
                     (self.on_peer_offline)(&entry.id);
-                    return
+                    return;
                 }
 
                 if entry.quality < BAD_QUALITY {
-                    self.ignored.insert(entry.id.to_string(), current_timestamp());
+                    self.ignored
+                        .insert(entry.id.to_string(), current_timestamp());
                     self.entries.remove(entry.id.to_string().as_str());
-                    return
+                    return;
                 }
             } else {
                 entry.heartbeats_succeeded = entry.heartbeats_succeeded + 1;
@@ -257,11 +270,10 @@ impl NetworkPeers {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::heartbeat;
     use super::*;
+    use crate::heartbeat;
 
     #[test]
     fn test_entry_should_advance_time_on_ping() {
@@ -275,29 +287,28 @@ mod tests {
         let excluded = PeerId::random();
 
         let mut peers = NetworkPeers::new(
-            vec!(PeerId::random(), excluded.clone()),
-            vec!(excluded.clone()),
-            0.6, Box::new(|x| { () }));
+            vec![PeerId::random(), excluded.clone()],
+            vec![excluded.clone()],
+            0.6,
+            Box::new(|x| ()),
+        );
 
         peers.register(&excluded, NetworkPeerOrigin::IncomingConnection);
 
         assert_eq!(1, peers.length());
-        assert!(! peers.has(&excluded))
+        assert!(!peers.has(&excluded))
     }
 
     #[test]
     fn test_peers_should_be_able_to_register_a_succeeded_heartbeat_result() {
         let peer = PeerId::random();
-        let mut peers = NetworkPeers::new(
-            vec!(peer.clone()),
-            vec!(),
-            0.6, Box::new(|x| { () }));
+        let mut peers = NetworkPeers::new(vec![peer.clone()], vec![], 0.6, Box::new(|x| ()));
 
         let ts = current_timestamp();
 
-        peers.update_record(heartbeat::HeartbeatPingResult{
+        peers.update_record(heartbeat::HeartbeatPingResult {
             destination: peer.clone(),
-            last_seen: Some(ts.clone())
+            last_seen: Some(ts.clone()),
         });
 
         let actual = peers.debug_output();
@@ -310,14 +321,11 @@ mod tests {
     #[test]
     fn test_peers_should_be_able_to_register_a_failed_heartbeat_result() {
         let peer = PeerId::random();
-        let mut peers = NetworkPeers::new(
-            vec!(peer.clone()),
-            vec!(),
-            0.6, Box::new(|x| { () }));
+        let mut peers = NetworkPeers::new(vec![peer.clone()], vec![], 0.6, Box::new(|x| ()));
 
-        peers.update_record(heartbeat::HeartbeatPingResult{
+        peers.update_record(heartbeat::HeartbeatPingResult {
             destination: peer.clone(),
-            last_seen: None
+            last_seen: None,
         });
 
         let actual = peers.debug_output();
@@ -332,22 +340,19 @@ mod tests {
         let first = PeerId::random();
         let second = PeerId::random();
 
-        let mut expected = vec!(first, second);
+        let mut expected = vec![first, second];
 
-        let mut peers = NetworkPeers::new(
-            expected.clone(),
-            vec!(),
-            0.6, Box::new(|x| { () }));
+        let mut peers = NetworkPeers::new(expected.clone(), vec![], 0.6, Box::new(|x| ()));
 
         let ts = current_timestamp();
 
-        peers.update_record(heartbeat::HeartbeatPingResult{
+        peers.update_record(heartbeat::HeartbeatPingResult {
             destination: first.clone(),
-            last_seen: Some(ts)
+            last_seen: Some(ts),
         });
-        peers.update_record(heartbeat::HeartbeatPingResult{
+        peers.update_record(heartbeat::HeartbeatPingResult {
             destination: second.clone(),
-            last_seen: Some(ts)
+            last_seen: Some(ts),
         });
 
         let mut actual = peers.ping_since(ts + 3000);
@@ -361,10 +366,7 @@ mod tests {
     #[test]
     fn test_peers_unregistered_peers_should_be_removed_from_the_list() {
         let peer = PeerId::random();
-        let mut peers = NetworkPeers::new(
-            vec!(),
-            vec!(),
-            0.6, Box::new(|x| { () }));
+        let mut peers = NetworkPeers::new(vec![], vec![], 0.6, Box::new(|x| ()));
 
         peers.register(&peer, NetworkPeerOrigin::IncomingConnection);
         peers.unregister(&peer);

@@ -1,5 +1,5 @@
-pub mod mixer;
 mod future_extensions;
+pub mod mixer;
 
 #[cfg(feature = "wasm")]
 pub mod wasm {
